@@ -1,0 +1,111 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-5.3", overlay=true,pyramiding = 20,currency="EUR")
+
+// Import ZenLibrary
+import ZenAndTheArtOfTrading/ZenLibrary/5 as zen
+
+nwo = input(high,'Z Shadow')
+int licenceID = input(67945022097498,'licenceID')
+int pipRisk = 3
+float maxSpread = input(2.0, 'Max Spread')
+float poc = input(high,'POC')
+
+float accountBalance  = input(title="Account Balance",  defval=10000.0, group="AutoView Oanda Settings", tooltip="Your Oanda account balance (optional - used for automation through AutoView plugin)")
+string accountCurrency = input(title="Account Currency",  defval="EUR" )
+float riskPerTrade    = input(title="Risk Per Trade %", defval=.0033,  group="AutoView Oanda Settings", tooltip="Your risk per trade as a % of your account balance (optional - used for automation through AutoView plugin)")
+
+float cl = na 
+float VOLUME = 1.0
+var int plus = 1
+float a = na
+float b = na
+var bool timeshift = true
+
+bool pom1 = false
+bool pom2 = false
+
+float SL = na
+float TP = na 
+
+//------------- DETERMINE POSITION SIZE -------------//
+// Check if our account currency is the same as the base or quote currency or neither (for risk $ conversion purposes)
+accountSameAsCounterCurrency = strategy.account_currency == syminfo.currency
+accountSameAsBaseCurrency = strategy.account_currency == syminfo.basecurrency
+accountNeitherCurrency = not accountSameAsCounterCurrency and not accountSameAsBaseCurrency
+
+// Get currency conversion rates if applicable
+conversionCurrencyPair = accountSameAsCounterCurrency ? syminfo.tickerid : strategy.account_currency + syminfo.currency
+conversionCurrencyRate = accountSameAsBaseCurrency or accountNeitherCurrency ? request.security(conversionCurrencyPair, "D", close, ignore_invalid_symbol=true) : 1.0
+
+// 22:00 - 00:00
+t1 = not na(time(timeframe.period, "1600-1800"))
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+//00:00 - 15:30
+t2 = not na(time(timeframe.period, "1800-0930"))
+bgcolor(t2 ? color.rgb(83, 255, 155, 85) : na)
+
+//16:30 - 20:00
+t3 = not na(time(timeframe.period, "1030-1400"))
+bgcolor(t3 ? color.rgb(255, 229, 83, 85) : na)
+
+// Display the current conversion currency ticker (for debug purposes)
+if barstate.islastconfirmedhistory
+    table t = table.new(position.top_right, 1, 2, color.black)
+    table.cell(t, 0, 0, "Conversion: " + conversionCurrencyPair + " (" + str.tostring(conversionCurrencyRate) + ")", text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 1, "Account: $" + str.tostring(zen.truncate(strategy.equity)), text_color=color.white, text_size=size.small)
+
+bgcolor(nwo <= -6.0 ? color.rgb(255, 153, 0, 62) : na )
+
+// Help Funcions
+
+if ((open[1] - close[1]) >= 100*syminfo.mintick and (open[1] - close[1]) < 200*syminfo.mintick)
+    pom1 := true
+
+if ((open[1] - close[1]) >= 300*syminfo.mintick)
+    pom2 := true
+
+//Open Pos #1
+if nwo[1] <= -6.0 and t3 and pom1 and not t1 
+    strategy.order(" ",strategy.long,qty = VOLUME)
+    strategy.order("  ",strategy.short,qty = VOLUME)
+    a := open - 10*syminfo.mintick
+    b := open + 200*syminfo.mintick
+
+    SL := open - 40*syminfo.mintick
+    TP := poc
+
+    VOLUME := zen.av_getPositionSize(accountBalance, riskPerTrade, pipRisk, conversionCurrencyRate)
+    VOLUME := VOLUME % 2 ? VOLUME + 1 : VOLUME
+    log.info("VOL: {0}",str.tostring(VOLUME))
+    VOLUME := VOLUME / 1000000 * 3
+    log.info("VOL1: {0}",str.tostring(VOLUME))
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + 'sl='+str.tostring(SL)+',tp='+str.tostring(TP) + ',spread='+str.tostring(maxSpread) ,alert.freq_once_per_bar)
+
+
+//Open Pos #2
+if nwo[1] <= -6.0 and t2 and pom2 and not t1 
+    strategy.order(" ",strategy.long,qty = VOLUME)
+    strategy.order("  ",strategy.short,qty = VOLUME)
+    a := open - 10*syminfo.mintick
+    b := open + 200*syminfo.mintick
+
+    VOLUME := zen.av_getPositionSize(accountBalance, riskPerTrade, pipRisk, conversionCurrencyRate)
+    VOLUME := VOLUME % 2 ? VOLUME + 1 : VOLUME
+    log.info("VOL: {0}",str.tostring(VOLUME))
+    VOLUME := VOLUME / 1000000
+    log.info("VOL1: {0}",str.tostring(VOLUME))
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_once_per_bar)
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_once_per_bar)
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_once_per_bar)
+
+//5
+if (nwo[1] <= -6.000 and nwo > -6.0)
+    a := open - 30*syminfo.mintick
+    b := open + 900*syminfo.mintick
+
+plot(a , "SL", color.rgb(0, 247, 255),linewidth = 1, style = plot.style_circles)
+plot(b , "TP", color.rgb(238, 255, 0),linewidth = 1, style = plot.style_circles)

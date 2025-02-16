@@ -1,0 +1,96 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-5.2.6.1", overlay=true,pyramiding = 20,currency="EUR",calc_on_every_tick = true,calc_on_order_fills = false)
+
+// Import ZenLibrary
+import ZenAndTheArtOfTrading/ZenLibrary/5 as zen
+
+series float nwo = input.source(high,'Z Shadow')
+int licenceID = input(67945022097491,'licenceID')
+int pipRisk = 3
+float maxSpread = input(2.0, 'Max Spread')
+bool showLine = input(true,"Show line")
+
+float accountBalance  = input(title="Account Balance",  defval=10000.0, group="AutoView Oanda Settings", tooltip="Your Oanda account balance (optional - used for automation through AutoView plugin)")
+string accountCurrency = input(title="Account Currency",  defval="EUR" )
+float riskPerTrade    = input(title="Risk Per Trade %", defval=.0033,  group="AutoView Oanda Settings", tooltip="Your risk per trade as a % of your account balance (optional - used for automation through AutoView plugin)")
+                                                               //(1%)
+float cl = na 
+float VOLUME = 1.0
+var int plus = 1
+float a = na
+float b = na
+var bool timeshift = true
+bool t1 = na
+bool t2 = na 
+var float h = na 
+var float l = na 
+
+//------------- DETERMINE POSITION SIZE -------------//
+// Check if our account currency is the same as the base or quote currency or neither (for risk $ conversion purposes)
+accountSameAsCounterCurrency = strategy.account_currency == syminfo.currency
+accountSameAsBaseCurrency = strategy.account_currency == syminfo.basecurrency
+accountNeitherCurrency = not accountSameAsCounterCurrency and not accountSameAsBaseCurrency
+
+// Get currency conversion rates if applicable
+conversionCurrencyPair = accountSameAsCounterCurrency ? syminfo.tickerid : strategy.account_currency + syminfo.currency
+conversionCurrencyRate = accountSameAsBaseCurrency or accountNeitherCurrency ? request.security(conversionCurrencyPair, "D", close, ignore_invalid_symbol=true) : 1.0
+
+// 22:00 - 00:00
+t1 := not na(time(timeframe.period, "2200-0000",'GMT+2'))
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+
+// Display the current conversion currency ticker (for debug purposes)
+if barstate.islastconfirmedhistory
+    table t = table.new(position.top_right, 1, 2, color.black)
+    table.cell(t, 0, 0, "Conversion: " + conversionCurrencyPair + " (" + str.tostring(conversionCurrencyRate) + ")", text_color=color.white, text_size=size.small)
+    table.cell(t, 0, 1, "Account: $" + str.tostring(zen.truncate(strategy.equity)), text_color=color.white, text_size=size.small)
+
+bgcolor(nwo <= -6.0 ? color.rgb(255, 153, 0, 62) : na )
+
+//Open Pos
+if (nwo[2] > -6.00000 and nwo[1] < -6.01000 and barstate.isnew and not t1)
+    log.info("NWO: {0} MWO1: {1}",str.tostring(nwo),str.tostring(nwo[1]))
+
+    strategy.order(" ",strategy.long,qty = VOLUME)
+    strategy.order("  ",strategy.short,qty = VOLUME)
+    a := open - 10*syminfo.mintick
+    b := open + 200*syminfo.mintick
+
+    VOLUME := zen.av_getPositionSize(accountBalance, riskPerTrade, pipRisk, conversionCurrencyRate)
+    VOLUME := VOLUME % 2 ? VOLUME + 1 : VOLUME
+    VOLUME := VOLUME / 1000000
+    
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_all)
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_all)
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk='+str.tostring(VOLUME) + ',spread='+str.tostring(maxSpread) ,alert.freq_all)
+
+    l := open - 80*syminfo.mintick 
+    line.new(bar_index, close[1], bar_index + 50, close[1], width = 3,color = color.rgb(255, 238, 0))
+    
+if low < l and na(h) and not na(l)
+    h := high[1]
+    l := na 
+
+if high >= h
+    line.new(bar_index - 2, h, bar_index + 25, h, width = 2,color = color.rgb(0, 255, 0))
+    h := na 
+
+if high[1] < h and not na(h) 
+    h := high[1]
+
+//5
+if (nwo[1] < -6.0100)
+    a := open - 30*syminfo.mintick
+    b := open + 900*syminfo.mintick
+    
+
+if (nwo < -6.0100 and nwo[1] > -6.0100 and showLine)
+    line.new(bar_index, open, bar_index + 400, open, width = 2,color = color.rgb(0, 255, 179))
+    
+
+plot(a , "SL", color.rgb(0, 247, 255),linewidth = 1, style = plot.style_circles)
+plot(b , "TP", color.rgb(238, 255, 0),linewidth = 1, style = plot.style_circles)

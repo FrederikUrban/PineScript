@@ -1,0 +1,164 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-3.2.2", overlay=true,pyramiding = 2)
+//*** Strategia z 3.1, namiesto sma je kernel***\\
+//Look back window = 200
+//Start regression = 100
+//WMA 500
+
+// #Short
+// 8:00 - 10:00
+// Pokial Estimator <= -2 && Estimator > -4, cakat na Estimator > 2 && potom cakat na Estimator < Plot && potvrdit 2x
+// Pokial Estimator <= -4, cakat na Estimator > 0 && potom cakat na Estimator < Plot && potvrdit 2x
+
+// [Alebo spravit -1.9 a 1.8]
+
+t1 = time(timeframe.period, "0200-0400")
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+var float onetick = syminfo.mintick
+
+sma50 = input(high,'Kernel')
+estimator = input(high,'Z Shadow')
+plt = input(high,'Plot')
+
+wma = ta.wma(close,500)
+plot(wma,color = color.rgb(255, 4, 117))
+var bool wmaGU = na
+var bool sma50gu = na
+
+plot(sma50,'sma50',color.rgb(33, 149, 243, 71))
+
+var float diff = na
+var bool candleDir = na
+var float takeProfit = na
+var float stopLoss = na
+var float longTakeProfit = na
+var float longStopLoss = na
+var int  plus = 0
+
+var float right = na
+
+var bool est_14 = na
+var bool long = na
+
+var bool est14 = na
+var bool short = na
+
+
+//******FUNKCIE********
+
+printTable(txtLeft, txtRight) =>
+    var table t = table.new(position.middle_right, 2, 1)
+    table.cell(t, 0, 0, txtLeft, bgcolor = color.yellow, text_halign = text.align_right)
+    table.cell(t, 1, 0, txtRight, bgcolor = color.yellow, text_halign = text.align_left)
+
+
+//kernel        
+if sma50 <= (sma50[7] - (onetick*12))
+    sma50gu := false
+else if sma50 >= (sma50[7] + (onetick*12))
+    sma50gu := true
+else 
+    sma50gu := na
+if hour == 18 and minute == 00
+    est14 := na
+    est_14 := na
+//WMA500
+if wma > wma[7]
+    wmaGU := true
+else if wma < wma[7]
+    wmaGU := false
+else 
+    wmaGU := na
+
+// NADARAYA-WATSON
+// LONG
+if estimator <= -1.4
+    est_14 := true
+
+if est_14 and estimator > plt
+    long := true
+// SHORT
+if estimator >= 1.4
+    est_14 := true
+
+if est_14 and estimator < plt
+    short := true
+
+
+if hour == 3 and minute == 45
+    max = high
+    min = low
+    for i = 0 to 7
+        accMin = low[i]
+        accMax = high[i]
+        if accMin<min
+            min := accMin
+        if accMax > max
+            max := accMax
+    diff := max - min
+
+//bgcolor(sma200gu == false ? color.rgb(227, 231, 95, 41) : na )
+//bgcolor(sma50gu == false ? color.rgb(67, 147, 232, 41) : na )
+
+//****************SHORT****************\\
+
+if wmaGU == false and short and sma50gu == false
+
+    takeProfit := close - diff*2
+    stopLoss := close + diff
+    strategy.entry("Short"+str.tostring(plus), strategy.short)
+    strategy.exit("Short Exit"+str.tostring(plus),from_entry = "Short"+str.tostring(plus),stop = stopLoss , limit = takeProfit)
+    sma50gu := na
+    wmaGU := na
+    
+    diff := na
+    candleDir := na
+    plus += 1
+
+    est_14 := na 
+    short := na
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= takeProfit or high >= stopLoss
+    stopLoss   := na
+    takeProfit := na
+
+plot(stopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(takeProfit, "TP", color.green, style = plot.style_circles)
+
+
+//****************LONG****************\\
+
+
+
+    //kernel going up         //sviecky stupaju
+if sma50gu and long and wmaGU
+
+    longTakeProfit := close + diff*2
+    longStopLoss := close - diff
+    strategy.entry("buy"+str.tostring(plus), strategy.long)
+    strategy.exit("Long Exit"+str.tostring(plus),from_entry = "buy"+str.tostring(plus),stop = longStopLoss , limit = longTakeProfit)
+    sma50gu := na
+    wmaGU := na
+
+    diff := na
+    candleDir := na
+    plus += 1
+
+    est_14 := na 
+    long := na 
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= longStopLoss or high >= longTakeProfit
+    longStopLoss   := na
+    longTakeProfit := na
+
+
+
+plot(longStopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(longTakeProfit, "TP", color.green, style = plot.style_circles)
+

@@ -1,0 +1,258 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-3.1.1.1+TradingRange", overlay=true,pyramiding = 20)
+// Rovnake ako 3.1 + NWO
+
+// #Short
+// 8:00 - 10:00
+// Pokial Estimator <= -2, cakat na Estimator > 2 (***2x potvrdit) && potom cakat na Estimator < Plot && potvrdit 2x
+// Pokial Estimator <= -4, cakat na Estimator > 0 && potom cakat na Estimator < Plot && potvrdit 2x
+
+// [Alebo spravit -1.9 a 1.8]
+
+//  SPRAVIT DALSIU STRATEGIU
+//  Kupit tie, ktore su medzi 8:00 - 10:00 =>
+// Estimator < 1.8 && Estimator > -1.8
+
+
+
+// Calculate start/end date and time condition
+startDate  = input.time(timestamp("2023-07-10T00:00:00"))
+finishDate = input.time(timestamp("2024-01-01T00:00:00"))
+ 
+time_cond  = time >= startDate and time <= finishDate
+
+
+
+
+t1 = time(timeframe.period, "0200-0400")
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+var float onetick = syminfo.mintick
+
+sma50 = ta.sma(close,50)
+sma200 = ta.sma(close,200)
+var bool sma50gu = na
+var bool sma200gu = na
+
+plot(sma50,'sma50',color.blue)
+plot(sma200,'sma200',color.yellow)
+
+var float diff = na
+var bool candleDir = na
+var float takeProfit = na
+var float stopLoss = na
+var float longTakeProfit = na
+var float longStopLoss = na
+var int  plus = 0
+
+var float right = na
+
+estimator = input(high,'Z Shadow')
+plt = input(high,'Plot')
+var bool est_18 = na
+var bool est18 = na
+var bool shortReady = na 
+var bool short = na 
+var bool est_4 = na 
+var bool est4 = na 
+var bool long = na 
+var bool longReady = na 
+var bool shortReady1 = na 
+var bool longReady1 = na 
+
+
+//******FUNKCIE********
+
+printTable(txtLeft, txtRight) =>
+    var table t = table.new(position.middle_right, 2, 1)
+    table.cell(t, 0, 0, txtLeft, bgcolor = color.yellow, text_halign = text.align_right)
+    table.cell(t, 1, 0, txtRight, bgcolor = color.yellow, text_halign = text.align_left)
+
+
+//8:00 - 10:00
+if hour == 3 and minute == 45
+
+    est_18 := na
+    est18 := na
+    shortReady := na 
+    short := na
+    est_4 := na 
+    est4 := na
+    long := na 
+    longReady := na 
+
+
+    //SMA50
+    if sma50 <= (sma50[7] - (onetick*9))
+        sma50gu := false
+    else if sma50 >= (sma50[7] + (onetick*9))
+        sma50gu := true
+    else 
+        sma50gu := na
+
+    //SMA200
+    if sma200 < (sma200[7] - (onetick*9))
+        sma200gu := false
+    else if sma200 > (sma200[7] + (onetick*9))
+        sma200gu := true
+    else 
+        sma200gu := na
+
+
+    max = high
+    min = low
+    for i = 0 to 7
+        accMin = low[i]
+        accMax = high[i]
+        if accMin<min
+            min := accMin
+        if accMax > max
+            max := accMax
+        //NWO  
+        //Short
+        if estimator[i] <= -1.9
+            est_18 := true
+        if estimator[i] >= 1.9
+            est18 := true
+        if estimator[i] <= -4
+            est_4 := true
+        if estimator[i] >= 4
+            est4 := true
+
+    if est_18 and est18
+        est18 := na
+        est_18 := na
+
+    if est_4 and est4 
+        est4 := na 
+        est_4 := na
+
+    if est_4 and est18
+        est_4 := na 
+        est18 := na 
+
+    if est4 and est_18 
+        est_18 := na 
+        est4 := na 
+
+    diff := max - min
+
+    if close > open[7]
+        candleDir := true
+
+    else
+        candleDir := false
+
+
+//bgcolor(sma200gu == false ? color.rgb(227, 231, 95, 41) : na )
+//bgcolor(sma50gu == false ? color.rgb(67, 147, 232, 41) : na )
+
+//10:00+
+//****************SHORT****************\\
+if shortReady and estimator >= 1.80
+    shortReady1 := true
+
+if estimator >= 0 and est_4 and shortReady
+    shortReady1 := true
+
+if estimator >= 1.80 and est_18
+    shortReady := true
+
+
+if estimator >= 0 and est_4
+    shortReady := true
+
+
+// Plot musi 2x potvrdit
+if estimator < plt and estimator[1] < plt[1] and shortReady and shortReady1
+    short := true
+
+
+if sma50gu == false and sma200gu == false and candleDir == false and short == true and time_cond
+
+    takeProfit := close - diff*2
+    stopLoss := close + diff
+    strategy.entry("Short"+str.tostring(plus), strategy.short)
+    strategy.exit("Short Exit"+str.tostring(plus),from_entry = "Short"+str.tostring(plus),stop = stopLoss , limit = takeProfit)
+
+    alert('67945022097493,sell,' + syminfo.ticker + ',risk=0.30,sl='+str.tostring(stopLoss)+',tp='+str.tostring(takeProfit), alert.freq_once_per_bar_close)
+    
+    sma50gu := na
+    sma200gu := na
+    est_18 := na
+    est18 := na
+    shortReady := na 
+    short := na
+    est_4 := na 
+    est4 := na
+    long := na 
+    longReady := na 
+    diff := na
+    candleDir := na
+    plus += 1
+    shortReady1 := na 
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= takeProfit or high >= stopLoss
+    stopLoss   := na
+    takeProfit := na
+
+plot(stopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(takeProfit, "TP", color.green, style = plot.style_circles)
+
+
+//****************LONG****************\\
+if longReady and estimator <= -1.80
+    longReady1 := true
+
+if longReady and estimator <= 0 and est4
+    longReady1 := true
+
+if estimator <= -1.80 and est18
+    longReady := true
+
+
+if estimator <= 0 and est4
+    longReady := true
+
+if estimator > plt and estimator[1] > plt[1] and longReady and longReady1
+    long := true
+
+    //smas going up         //sviecky stupaju
+if sma50gu and sma200gu and candleDir and long and time_cond
+
+    longTakeProfit := close + diff*2
+    longStopLoss := close - diff
+    strategy.entry("Long"+str.tostring(plus), strategy.long)
+    strategy.exit("Long Exit"+str.tostring(plus),from_entry = "Long"+str.tostring(plus),stop = longStopLoss , limit = longTakeProfit)
+
+    alert('67945022097493,buy,' + syminfo.ticker + ',risk=0.30,sl='+str.tostring(longStopLoss)+',tp='+str.tostring(longTakeProfit), alert.freq_once_per_bar_close)
+
+    sma50gu := na
+    sma200gu := na
+    est_18 := na
+    est18 := na
+    shortReady := na 
+    short := na
+    est_4 := na 
+    est4 := na
+    long := na 
+    longReady := na  
+    diff := na
+    candleDir := na
+    plus += 1
+    longReady1 := na 
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= longStopLoss or high >= longTakeProfit
+    longStopLoss   := na
+    longTakeProfit := na
+
+
+
+plot(longStopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(longTakeProfit, "TP", color.green, style = plot.style_circles)
+

@@ -1,0 +1,174 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-3.3", overlay=true,pyramiding = 20)
+
+//###INPUTS
+var float nwo = input(high,'Z Shadow')
+var float plot_ = input(high,'Plot')
+sma50 = ta.sma(close,50)
+sma200 = ta.sma(close,200)
+
+//###VARIABLES
+var int  plus = 0
+var bool sma200gu = na
+var bool sma50gu = na
+var bool candleDir = na
+var float takeProfit = na
+var float stopLoss = na
+var float longTakeProfit = na
+var float longStopLoss = na
+var float diff = na
+var float onetick = syminfo.mintick
+
+int plotKlesa = 0
+int plotStupa = 0
+var bool nwo_2 = na
+var bool nwo2 = na
+var bool plot2 = na
+var bool plot_2 = na 
+var bool pltGU = na 
+var bool pltGD = na 
+var bool checkSecLong = na 
+var bool checkSecShort = na 
+var bool long = na 
+var bool short = na 
+
+//###FUNCITONS
+
+
+t1 = time(timeframe.period, "0200-0400")
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+plot(sma50,'sma50',color.blue)
+plot(sma200,'sma200',color.yellow)
+
+//### 8:00 - 10:00
+if hour == 3 and minute == 45
+    if sma50 <= (sma50[7] - (onetick*9))
+        sma50gu := false
+
+    else if sma50 >= (sma50[7] + (onetick*9))
+        sma50gu := true
+
+    else
+        sma50gu := na
+
+    if sma200 < (sma200[7] - (onetick*9))
+        sma200gu := false
+    else if sma200 > (sma200[7] + (onetick*9))
+        sma200gu := true
+    else 
+        sma200gu := na
+
+    max = high
+    min = low
+    for i = 0 to 7
+        accMin = low[i]
+        accMax = high[i]
+        if accMin<min
+            min := accMin
+        if accMax > max
+            max := accMax
+        //###PLOT
+        if plot_[i+1] < plot_[i]
+            plotStupa += 1
+
+        if plot_[i+1] > plot_[i]
+            plotKlesa += 1
+
+
+    if plotKlesa >= 0
+        pltGD := true
+
+    if plotStupa >= 0
+        pltGU := true
+
+    for i = 0 to 7
+        //###LONG NWO 2 - 4
+        if nwo[i] >= 2 and nwo[i] <= 4 and pltGU
+            nwo2 := true
+        //###SHORT NWO -2 - -4
+        if nwo[i] <= -2 and nwo[i] >= -4 and pltGD
+            nwo_2 := true
+
+
+
+
+    diff := max - min
+
+    if close > open[7]
+        candleDir := true
+
+    else
+        candleDir := false
+
+
+//###10:00+ (2. Phase)
+//###CHECKING +-2 < NWO < +-4
+if nwo <= -2 and nwo[1] <= -2 and nwo2
+    checkSecLong := true
+
+if nwo >= 2 and nwo[1] >= 2 and nwo_2
+    checkSecShort := true
+
+//###3. PHASE
+if nwo <= -0.5 and nwo[1] <= -0.5 and plot_ < plot_[1] and plot_[1] < plot_[2] and checkSecShort
+    short := true
+
+if nwo >= 0.5 and nwo[1] >= 0.5 and plot_ > plot_[1] and plot_[1] > plot_[2] and checkSecLong
+    long := true
+
+//###SHORT
+if sma50gu == false and sma200gu == false and candleDir == false and short == true
+
+    takeProfit := close - diff*2
+    stopLoss := close + diff
+    strategy.entry("Short"+str.tostring(plus), strategy.short)
+    strategy.exit("Short Exit"+str.tostring(plus),from_entry = "Short"+str.tostring(plus),stop = stopLoss , limit = takeProfit)
+
+    alert('67945022097494,sell,' + syminfo.ticker + ',risk=0.30,sl='+str.tostring(stopLoss)+',tp='+str.tostring(takeProfit), alert.freq_once_per_bar_close)
+
+    sma50gu := na
+    sma200gu := na
+    diff := na
+    candleDir := na
+    plus += 1
+    short := na 
+    checkSecShort := na 
+    nwo_2 := na 
+    pltGD := na 
+
+if low <= takeProfit or high >= stopLoss
+    stopLoss   := na
+    takeProfit := na
+
+plot(stopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(takeProfit, "TP", color.green, style = plot.style_circles)
+
+///###LONG
+if sma50gu and sma200gu and candleDir and long
+    longTakeProfit := close + diff*2
+    longStopLoss := close - diff
+    strategy.entry("Long"+str.tostring(plus), strategy.long)
+    strategy.exit("Long Exit"+str.tostring(plus),from_entry = "Long"+str.tostring(plus),stop = longStopLoss , limit = longTakeProfit)
+    
+    alert('67945022097494,buy,' + syminfo.ticker + ',risk=0.30,sl='+str.tostring(longStopLoss)+',tp='+str.tostring(longTakeProfit), alert.freq_once_per_bar_close)
+
+    sma50gu := na
+    sma200gu := na
+    diff := na
+    candleDir := na
+    plus += 1
+    long := na
+    checkSecLong := na 
+    nwo2 := na 
+    pltGU := na 
+
+if low <= longStopLoss or high >= longTakeProfit
+    longStopLoss   := na
+    longTakeProfit := na
+
+plot(longStopLoss, "SL", color.rgb(242, 255, 0), style = plot.style_circles)
+plot(longTakeProfit, "TP", color.green, style = plot.style_circles)

@@ -1,0 +1,122 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-5", overlay=true,pyramiding = 20,currency="EUR")
+
+// INPUTS
+kernel = input(high,"Kernel")
+nwo = input(high,'Z Shadow')
+plot = input(high,'Plot')
+sl = input(high,'Support level')
+log.info('SL {0}',sl)
+
+// VARIABLES
+var bool podmienka1 = na 
+bool p1 = na 
+var bool podmienka2 = na  
+bool p2 = na  
+var bool podmienka3 = na 
+bool p3 = na 
+var bool podmienka4 = na 
+bool p4 = na 
+var bool podmienka5 = na 
+bool p5 = na 
+
+float closePoint = na 
+
+var int plus = 1
+var int VOLUME = 60000
+
+// FUNCTIONS
+
+// 1.
+if close < kernel and open > kernel
+    podmienka1 := true
+    p1 := true
+    podmienka2 := na 
+    podmienka3 := na 
+    podmienka4 := na 
+    podmienka5 := na  
+
+plotshape(p1,'',shape.labeldown,location.abovebar,#00000000,0,'1',#ff0000,false,size = size.normal)
+
+
+// 2.
+if nwo <= -3.0 and podmienka1 
+    podmienka1 := na 
+    podmienka2 := true
+    p2 := true
+    
+plotshape(p2,'',shape.labeldown,location.abovebar,#00000000,0,'2',#ea00ff,false,size = size.normal)
+
+//bgcolor(podmienka1 and podmienka2 ? color.rgb(0, 187, 212, 60) : na)
+
+// 3.
+// nwo > plot && nwo < 0.5
+if nwo < plot and nwo < 0.0 and nwo[1] > plot[1] and podmienka2
+    podmienka2 := na 
+    a = 1
+
+    while nwo[a] < 0.5 and nwo[a] > plot[a]
+
+        if nwo[a+1] < plot[a+1] and nwo[a+1] < 0.0
+            podmienka3 := true
+            p3 := true
+            log.info('podmienka3 - {0}',str.tostring(podmienka3))
+            break
+        a += 1
+
+plotshape(p3,'',shape.labeldown,location.abovebar,#00000000,0,'3',#0062ff,false,size = size.normal)
+
+//bgcolor(podmienka3 ? color.rgb(230, 0, 199, 68) : na )
+
+//4.
+if nwo <= -2.0 and nwo[1] < -2.0 and podmienka3
+    podmienka3 := na 
+    podmienka4 := true
+    p4 := true
+
+plotshape(p3 and p4,'',shape.labeldown,location.abovebar,#00000000,0,'34',#7ab1e4,false,size = size.normal)
+
+plotshape(p4 and not p3,'',shape.labeldown,location.abovebar,#00000000,0,'4',#00ffff,false,size = size.normal)
+
+// Open Position
+if podmienka4 and nwo >= 0.5 and nwo[1] >= 0.5 
+    podmienka4 := na 
+    podmienka5 := true
+    p5 := true
+    
+plotshape(p5,'',shape.labeldown,location.abovebar,#00000000,0,'5',#0dff00,false,size = size.normal)
+
+// OPEN POSITION
+if close > kernel and close[1] > kernel and podmienka5 and not na(sl)
+    podmienka5 := na 
+    strategy.order("Long"+str.tostring(plus),strategy.long,qty = VOLUME)
+    
+// CLOSE POSITON
+// if strategy.position_size != 0 and (low < sl or na(sl))
+//     strategy.order("Long TP "+str.tostring(plus),strategy.short,qty = VOLUME)
+//     plus += 1
+
+// Set SL podla nizsej hodnoty
+if kernel > sl
+    closePoint := sl 
+else
+    closePoint := kernel
+
+plot(closePoint,'closePoint',color.lime,3) 
+// CLOSE POSITON
+if strategy.position_size != 0 and close < closePoint and close[1] < closePoint
+    strategy.order("Long TP "+str.tostring(plus),strategy.short,qty = VOLUME)
+    plus += 1
+
+
+
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 1, '', shpD, locA, noC, 0, '₁', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 2, '', shpD, locA, noC, 0, '₂', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 3, '', shpD, locA, noC, 0, '₃', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 4, '', shpD, locA, noC, 0, '₄', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 5, '', shpD, locA, noC, 0, '₅', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 6, '', shpD, locA, noC, 0, '₆', gnC, dspN)
+// plotshape(BnoShw and not Bcmpltd and S.bSC == 7, '', shpD, locA, noC, 0, '₇', gnC, dspN)
