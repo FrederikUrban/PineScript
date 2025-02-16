@@ -1,0 +1,452 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © FreedyW
+
+//@version=5
+strategy("TradingBot-3.3.9", overlay=true,pyramiding = 20,currency="USD")
+// Bez 8:00-10:00
+
+//###INPUTS
+float nwo = input(high,'Z Shadow')
+float plot_ = input(high,'Plot')
+int licenceID = input(67945022097496,'licenceID')
+sma50 = ta.sma(close,50)
+sma200 = ta.sma(close,200)
+
+//###VARIABLES
+var float takeProfit = na
+var float stopLoss = na
+var float longTakeProfit = na
+var float longStopLoss = na
+var float diff = na
+var float onetick = syminfo.mintick
+var float nwo1max = na 
+var float nwo_1max = na 
+var int plotKlesa = 0
+var int plotStupa = 0
+var int  plus = 0
+var bool candleDir = na
+var bool sma200gu = na 
+var bool sma50gu = na 
+var bool nwo_2 = na
+var bool nwo2 = na
+var bool nwo4 = na 
+var bool nwo_4 = na 
+var bool plot4 = na 
+var bool plot_4 = na 
+var bool plot2 = na
+var bool plot_2 = na 
+var bool nwo1 = na 
+var bool nwo_1 = na 
+var bool pltGU = na 
+var bool pltGD = na 
+var bool pltGU0 = na 
+var bool pltGD0 = na 
+var bool checkSecLong = na 
+var bool checkSecShort = na 
+var bool long = na 
+var bool short = na
+var float patdesiat = na 
+var float patdesiatPercent = na 
+var int sLong = 0
+var int kShort = 0
+var int celkovo = 0
+var bool nadPolkou = na 
+var int VOLUME = 60000
+var float longOpen = na 
+var float shortOpen = na 
+var bool tpPol = na 
+var float OsemdesiatPercent = na 
+
+bool slColor = na 
+
+//###FUNCTIONS
+
+//t1 = time(timeframe.period, "0200-0400",'GMT-5')
+t1 = time(timeframe.period, "0200-0400")
+bgcolor(t1 ? color.rgb(149, 83, 255, 85) : na)
+
+plot(sma50,'sma50',color.blue)
+plot(sma200,'sma200',color.yellow)
+
+printTable(txtLeft, txtMiddle,txtRight,percenta) =>
+    var table t = table.new(position.middle_right, 3, 2)
+    table.cell(t, 0, 0, txtLeft, bgcolor = color.yellow, text_halign = text.align_right)
+    table.cell(t, 1, 0, txtMiddle, bgcolor = color.yellow, text_halign = text.align_left)
+    table.cell(t, 2, 0, txtRight, bgcolor = color.yellow, text_halign = text.align_left)
+    table.cell(t, 1, 1, percenta, bgcolor = color.yellow, text_halign = text.align_left)
+
+//### 8:00 - 10:00
+//GetSmaDirections
+//GetDiff
+if  strategy.position_size == 0
+    //SMA50
+    if sma50 <= (sma50[7] - (onetick*9))
+        sma50gu := false
+
+    else if sma50 >= (sma50[7] + (onetick*9))
+        sma50gu := true
+
+    else
+        sma50gu := na
+    //SMA200
+    if sma200 < (sma200[7] - (onetick*9))
+        sma200gu := false
+    else if sma200 > (sma200[7] + (onetick*9))
+        sma200gu := true
+    else 
+        sma200gu := na
+    //CandleDir
+    if close > open[7]
+        candleDir := true
+
+    else
+        candleDir := false
+    //GetDiff
+    max = high
+    min = low
+
+    for i = 0 to 7
+        accMin = low[i]
+        accMax = high[i]
+        if accMin<min
+            min := accMin
+        if accMax > max
+            max := accMax
+
+    diff := max - min
+
+//GetNwo 2-4 Plot 3z8
+//GetPlot
+if strategy.position_size == 0
+    //GetPlot
+   
+    for i = 0 to 7
+        if plot_[i+1] < plot_[i]
+            plotStupa += 1
+
+        if plot_[i+1] > plot_[i]
+            plotKlesa += 1
+
+    if plotKlesa >= 5
+        pltGD := true
+
+    if plotStupa >= 5
+        pltGU := true
+
+    //GetNwo
+    for i = 0 to 7
+        //LONG NWO 2 <=> 4
+        if nwo[i] >= 2.0 and nwo[i] <= 4.0 and pltGU
+            nwo2 := true
+        //SHORT NWO -2 <=> -4
+        if nwo[i] <= -2.0 and nwo[i] >= -4.0 and pltGD
+            nwo_2 := true
+            
+    //Check if NWO < -5
+    for i = 0 to 7
+        if nwo[i] > 4.0
+            nwo2 := na 
+
+        if nwo[i] < -4.0
+            nwo_2 := na 
+
+//###GetNwo 2-4 Plot 0z8
+if strategy.position_size == 0
+
+    for i = 0 to 7
+
+        //long
+        if plot_[i] < plot_[i+1]
+            pltGU0 := false
+   
+        //short
+        if plot_[i] > plot_[i+1]
+            pltGD0 := false
+
+//###GetNwo 4-5
+if strategy.position_size == 0
+
+
+    for i = 0 to 7
+        //Short
+        if nwo[i] < -4.0 and nwo[i] > -5.0
+            nwo_4 := true
+        //Long
+        if nwo[i] > 4.0 and nwo[i] < 5.0 
+            nwo4 := true
+    //Check Nwo < -5 or Nwo > 5
+    for i = 0 to 7
+        if nwo[i] <= -5.0
+            nwo_4 := na 
+
+        if nwo[i] >= 5.0
+            nwo4 := na
+
+//###GetNwo 1.7-2
+if strategy.position_size == 0
+
+
+    for i = 0 to 7
+        //Short
+        if nwo[i] <= -1.7 and nwo[i] > -2.0
+            nwo_1 := true
+            //Get Min Nwo Value
+            if nwo[i] < nwo_1max
+                nwo_1max := nwo[i]
+        //Long
+        if nwo[i] >= 1.7 and nwo[i] < 2.0
+            nwo1 := true
+            //Get Max Nwo Value
+            if nwo[i] > nwo1max
+                nwo1max := nwo[i]
+
+    for i = 0 to 7 
+        if nwo[i] <= -2.0
+            nwo_1 := na 
+
+        if nwo[i] >= 2.0
+            nwo1 := na 
+
+//###10:00+ (2. Phase)
+//CHECKING +-2 < NWO < +-4
+if nwo <= -2.0 and nwo[1] <= -2.0 and nwo2
+    checkSecLong := true
+
+if nwo >= 2.0 and nwo[1] >= 2.0 and nwo_2
+    checkSecShort := true
+
+//CHECKING +-2 < NWO < +-4 + Plot 0z8
+if nwo <= -2.0 and pltGU0 and nwo2
+    checkSecLong := true
+
+if nwo >= 2.0 and pltGD0 and nwo_2
+    checkSecShort := true
+
+//CHECKING +-4 < NWO < +-5
+if nwo <= -2.0 and nwo[1] <= -2.0 and nwo4 and pltGU
+    checkSecLong := true
+
+if nwo >= 2.0 and nwo[1] >= 2.0 and nwo_4 and pltGD
+    checkSecShort := true
+
+//CHECKING +-1.7 < NWO > +- 2
+if nwo <= (nwo1max* -1) and nwo[1] <= (nwo1max * -1) and pltGU and nwo1
+    checkSecLong := true
+
+if nwo >= (nwo_1max * -1) and nwo[1] >= (nwo_1max * -1) and pltGD and nwo_1
+    checkSecShort := true
+
+//###3. PHASE
+if nwo <= -0.5 and nwo[1] <= -0.5 and plot_ < plot_[1] and plot_[1] < plot_[2] and checkSecShort
+    short := true
+
+if nwo >= 0.5 and nwo[1] >= 0.5 and plot_ > plot_[1] and plot_[1] > plot_[2] and checkSecLong
+    long := true
+
+//bgcolor(long ? color.orange : na)
+//###SHORT
+if sma50gu == false and sma200gu == false and candleDir == false and short == true and strategy.position_size == 0 
+
+    takeProfit := close - diff*2
+    stopLoss := close + diff
+    patdesiat := close - diff 
+    shortOpen := close
+    OsemdesiatPercent := close - (diff * 1.6)
+
+    strategy.order("Short"+str.tostring(plus),strategy.short,qty = VOLUME)
+    plus += 1
+
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk=0.3,sl='+str.tostring(stopLoss)+',tp='+str.tostring(patdesiat), alert.freq_once_per_bar_close)
+    alert(str.tostring(licenceID)+',sell,' + syminfo.ticker + ',risk=0.3,sl='+str.tostring(stopLoss), alert.freq_once_per_bar_close)
+
+    sma50gu := na
+    sma200gu := na
+    diff := na
+    candleDir := na
+    short := na 
+    checkSecShort := na 
+    nwo_2 := na 
+    pltGD := na 
+    celkovo += 1
+    short := na 
+    long := na 
+    plotStupa := 0
+    plotKlesa := 0
+    nwo2 := na 
+    nwo_2 := na 
+    checkSecLong := na 
+    checkSecShort := na 
+    pltGU := na
+    pltGD := na 
+    pltGD0 := true
+    pltGU0 := true
+    nwo4 := na
+    nwo_4 := na 
+    nwo1 := na 
+    nwo_1 := na 
+    nwo1max := 0 
+    nwo_1max := 0 
+// SL
+if high >= stopLoss and strategy.position_size == (VOLUME * -1)
+    strategy.order("Short"+str.tostring(plus),strategy.long,qty = VOLUME)
+    plus += 1
+    stopLoss   := na
+    takeProfit := na
+    shortOpen := na 
+    patdesiat := na
+    OsemdesiatPercent := na 
+
+// SL na Open position price 
+if high >= stopLoss and strategy.position_size > (VOLUME * -1) and strategy.position_size < 0
+    strategy.order("Short"+str.tostring(plus),strategy.long,qty = VOLUME/2)
+    plus += 1
+    stopLoss   := na
+    takeProfit := na
+    patdesiat := na
+    shortOpen := na 
+    OsemdesiatPercent := na 
+
+// TP 1/2
+if low <= patdesiat and strategy.position_size >= (VOLUME * -1) and stopLoss != shortOpen
+    strategy.order("Short"+str.tostring(plus),strategy.long,qty = VOLUME/2)
+    plus += 1
+    kShort += 1
+    stopLoss := shortOpen 
+    //Modify SL
+    alert(str.tostring(licenceID)+',newsltpshort,' + syminfo.ticker + ',sl='+str.tostring(stopLoss), alert.freq_all)
+
+// TP 80%
+if low <= OsemdesiatPercent and strategy.position_size < 0
+    OsemdesiatPercent := na 
+    stopLoss := patdesiat
+    patdesiat := na
+    //Modify SL
+    alert(str.tostring(licenceID)+',newsltpshort,' + syminfo.ticker + ',sl='+str.tostring(stopLoss), alert.freq_all)
+
+// TP last Candle
+if low <= takeProfit
+    if high[1] < stopLoss and high[1] > close
+        stopLoss := high[1]
+        //Modify SL
+        alert(str.tostring(licenceID)+',newsltpshort,' + syminfo.ticker + ',sl='+str.tostring(stopLoss), alert.freq_all)
+        
+// TP last Candle
+if  high >= stopLoss
+    strategy.order("Short"+str.tostring(plus),strategy.long,qty = VOLUME/2)
+    plus += 1
+    stopLoss   := na
+    takeProfit := na
+    shortOpen := na
+    patdesiat := na
+
+plot(stopLoss, "SL", color.rgb(255, 0, 0), style = plot.style_circles)
+plot(takeProfit, "TP", color.green, style = plot.style_circles)
+plot(patdesiat, "PD", color.yellow, style = plot.style_circles)
+plot(OsemdesiatPercent, "80percent", color.rgb(252, 151, 0), style = plot.style_circles)
+
+///###LONG
+if sma50gu and sma200gu and candleDir and long
+    longTakeProfit := close + diff*2
+    longStopLoss := close - diff
+    patdesiatPercent := close + diff
+    OsemdesiatPercent := close + (diff * 1.6)
+    strategy.order("Long"+str.tostring(plus),strategy.long,qty = VOLUME)
+    longOpen := close
+    
+    plus += 1
+
+    alert(str.tostring(licenceID)+',buy,' + syminfo.ticker + ',risk=0.3,sl='+str.tostring(longStopLoss)+',tp='+str.tostring(patdesiatPercent), alert.freq_once_per_bar_close)
+    alert(str.tostring(licenceID)+',buy,' + syminfo.ticker + ',risk=0.3,sl='+str.tostring(longStopLoss), alert.freq_once_per_bar_close)
+
+    sma50gu := na
+    sma200gu := na
+    diff := na
+    candleDir := na
+    long := na
+    checkSecLong := na 
+    nwo2 := na 
+    pltGU := na 
+    celkovo += 1
+    short := na 
+    long := na 
+    plotStupa := 0
+    plotKlesa := 0
+    nwo2 := na 
+    nwo_2 := na 
+    checkSecLong := na 
+    checkSecShort := na 
+    pltGU := na
+    pltGD := na 
+    pltGD0 := true
+    pltGU0 := true
+    nwo4 := na
+    nwo_4 := na 
+    nwo1 := na 
+    nwo_1 := na 
+    nwo1max := 0 
+    nwo_1max := 0 
+//  TP last candle 
+if high >= longTakeProfit
+    if low[1] > longStopLoss and low[1] < close 
+        longStopLoss := low[1]
+        //Modify SL
+        alert(str.tostring(licenceID)+',newsltplong,' + syminfo.ticker + ',sl='+str.tostring(longStopLoss), alert.freq_all)
+
+
+
+//  TP 1/2
+if high >= patdesiatPercent and strategy.position_size == VOLUME and longStopLoss != longOpen
+    strategy.order("Long"+str.tostring(plus),strategy.short,qty = VOLUME/2)
+    plus += 1
+    sLong += 1
+    longStopLoss := longOpen
+    //Modify SL
+    alert(str.tostring(licenceID)+',newsltplong,' + syminfo.ticker + ',sl='+str.tostring(longStopLoss), alert.freq_all)
+
+// SL na Open position
+if low <= longStopLoss and strategy.position_size < VOLUME  and strategy.position_size > 0
+    strategy.order("Long"+str.tostring(plus),strategy.short,qty = VOLUME/2)
+    plus += 1
+    longStopLoss   := na
+    longTakeProfit := na
+    patdesiatPercent := na
+    longOpen := na 
+    OsemdesiatPercent := na 
+    
+    
+// TP 80%
+if high >= OsemdesiatPercent and strategy.position_size > 0 
+    longStopLoss := patdesiatPercent
+    patdesiatPercent := na 
+    OsemdesiatPercent := na 
+    //Modify SL
+    alert(str.tostring(licenceID)+',newsltplong,' + syminfo.ticker + ',sl='+str.tostring(longStopLoss), alert.freq_all)
+    
+
+//SL
+if low <= longStopLoss and strategy.position_size == VOLUME
+    strategy.order("Long"+str.tostring(plus),strategy.short,qty = VOLUME)
+    plus += 1
+    longStopLoss   := na
+    longTakeProfit := na
+    patdesiatPercent := na
+    longOpen := na 
+    OsemdesiatPercent := na 
+
+//  TP last candle 
+if low < longStopLoss
+    strategy.order("Long"+str.tostring(plus),strategy.short,qty = VOLUME/2)
+    plus += 1
+    longStopLoss   := na
+    longTakeProfit := na
+    patdesiatPercent := na
+    longOpen := na 
+    OsemdesiatPercent := na 
+    slColor := true
+
+plot(longStopLoss, "SL", color.red, style = plot.style_circles)
+plot(longTakeProfit, "TP", color.green, style = plot.style_circles)
+plot(patdesiatPercent, "SL", color.rgb(242, 255, 0), style = plot.style_circles)
+plot(OsemdesiatPercent, "80percent", color.rgb(252, 151, 0), style = plot.style_circles)
+
+printTable(str.tostring(sLong),str.tostring(kShort),str.tostring(celkovo),str.tostring((kShort+sLong)/celkovo))
